@@ -1,8 +1,22 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <meta charset="UTF-8" />
     <title>Poll Test Client</title>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      label {
+        margin-right: 8px;
+      }
+      pre {
+        background: #f4f4f4;
+        padding: 10px;
+        height: 200px;
+        overflow-y: auto;
+      }
+    </style>
   </head>
   <body>
     <h1>Real-Time Poll Tester</h1>
@@ -10,50 +24,72 @@
     <div>
       <label>Poll ID: <input id="pollId" /></label>
       <button id="joinBtn">Join Poll</button>
+      <button id="leaveBtn">Leave Poll</button>
     </div>
 
-    <div>
+    <div style="margin-top: 10px">
       <label>Option ID: <input id="optionId" /></label>
       <label>User ID: <input id="userId" /></label>
       <button id="voteBtn">Cast Vote</button>
     </div>
 
+    <h3>Log</h3>
     <pre id="log"></pre>
 
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
       const log = (msg) => {
-        document.getElementById("log").textContent += msg + "\n";
+        const logEl = document.getElementById('log');
+        logEl.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+        logEl.scrollTop = logEl.scrollHeight;
       };
 
-      const socket = io("/polls"); // namespace
+      const socket = io('/polls'); // namespace
 
-      document.getElementById("joinBtn").onclick = () => {
-        const pollId = document.getElementById("pollId").value;
-        socket.emit("join_poll", { pollId });
-        log(`Joined poll ${pollId}`);
+      document.getElementById('joinBtn').onclick = () => {
+        const pollId = document.getElementById('pollId').value.trim();
+        if (!pollId) return log('⚠️ Please enter a Poll ID');
+        socket.emit('join_poll', { pollId });
+        log(`➡️ Sent join request for poll ${pollId}`);
       };
 
-      document.getElementById("voteBtn").onclick = async () => {
-        const pollId = document.getElementById("pollId").value;
-        const optionId = document.getElementById("optionId").value;
-        const userId = document.getElementById("userId").value;
+      document.getElementById('leaveBtn').onclick = () => {
+        const pollId = document.getElementById('pollId').value.trim();
+        if (!pollId) return log('⚠️ Please enter a Poll ID');
+        socket.emit('leave_poll', { pollId });
+        log(`⬅️ Left poll ${pollId}`);
+      };
+
+      document.getElementById('voteBtn').onclick = async () => {
+        const pollId = document.getElementById('pollId').value.trim();
+        const optionId = document.getElementById('optionId').value.trim();
+        const userId = document.getElementById('userId').value.trim();
+        if (!pollId || !optionId || !userId)
+          return log('⚠️ Please fill all fields');
 
         const res = await fetch(`/api/polls/${pollId}/votes`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId, pollOptionId: optionId }),
         });
-        log(`Vote response: ${res.status}`);
+        log(`🗳 Vote response: ${res.status}`);
       };
 
-      socket.on("poll_results", (data) => {
-        log(`Live results: ${JSON.stringify(data)}`);
+      // Server events
+      socket.on('joined', ({ pollId }) => {
+        log(`✅ Joined poll room: ${pollId}`);
       });
 
-      socket.on("poll_error", (err) => {
-        log(`Error: ${err.message}`);
+      socket.on('poll_results', (data) => {
+        log(`📊 Live results: ${JSON.stringify(data)}`);
       });
+
+      socket.on('poll_error', (err) => {
+        log(`❌ Error: ${err.message}`);
+      });
+
+      socket.on('connect', () => log('🔌 Connected to server'));
+      socket.on('disconnect', () => log('❌ Disconnected from server'));
     </script>
   </body>
 </html>
