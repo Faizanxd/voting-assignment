@@ -1,0 +1,110 @@
+openapi: 3.0.0
+info:
+  title: Real-Time Polling API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/polls/user/{userId}:
+    get:
+      summary: List polls by creator
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+
+      responses:
+        '201':
+          description: Created
+  /api/users/{id}:
+    get:
+      summary: Get user by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+  /api/polls:
+    post:
+      summary: Create poll
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePoll'
+      responses:
+        '201':
+          description: Created
+  /api/polls/{id}:
+    get:
+      summary: Get poll with options and tallies
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+
+  /api/polls/{id}/publish:
+    patch:
+      summary: Publish poll
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: No Content
+  /api/polls/{pollId}/votes:
+    post:
+      summary: Cast vote
+      parameters:
+        - in: path
+          name: pollId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CastVote'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    CreateUser:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 6 }
+      required: [name, email, password]
+    CreatePoll:
+      type: object
+      properties:
+        question: { type: string }
+        creatorId: { type: string }
+        options:
+          type: array
+          items: { type: string }
+      required: [question, creatorId, options]
+    CastVote:
+      type: object
+      properties:
+        userId: { type: string }
+        pollOptionId: { type: string }
+      required: [userId, pollOptionId]
