@@ -37,15 +37,16 @@ const eventBus = new SimpleEventBus();
 const pollGateway = new PollGateway(io);
 pollGateway.init();
 
-// --- Repositories ---
+// --- Repositories (pass prisma where repositories expect it) ---
 const userRepo = new PrismaUserRepository(prisma);
 const pollRepo = new PrismaPollRepository(prisma);
 const voteRepo = new PrismaVoteRepository(prisma);
 
 // --- Services ---
+// VoteService now receives prisma so it can run transactions via prisma.$transaction
 const userService = new UserService(userRepo);
 const pollService = new PollService(pollRepo);
-const voteService = new VoteService(voteRepo, pollRepo, eventBus);
+const voteService = new VoteService(prisma, voteRepo, pollRepo, eventBus);
 
 // Subscribe gateway to VoteCastEvent
 eventBus.subscribe('VoteCastEvent', (event) =>
@@ -72,7 +73,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // --- Error handler ---
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err);
-  res.status(500).json({ error: err.message || 'Internal Server Error' });
+  const status = (err && err.status) || 500;
+  res.status(status).json({ error: err.message || 'Internal Server Error' });
 });
 
 // --- Start server ---

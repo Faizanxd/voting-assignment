@@ -59,3 +59,8 @@ model Vote {
   @@index([pollId])
   @@index([userId])
 }
+
+model IdempotencyKey {
+  key       String   @id
+  createdAt DateTime @default(now())
+}

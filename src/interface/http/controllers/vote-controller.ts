@@ -5,7 +5,7 @@ import { castVoteSchema } from '../../../application/dto/vote-dto';
 export class VoteController {
   constructor(private readonly voteService: VoteService) {}
 
-  castVote = async (req: Request, res: Response, next: NextFunction) => {
+  castVote = async (req, res, next) => {
     try {
       const dto = castVoteSchema.parse({
         userId: req.body.userId,
@@ -14,7 +14,10 @@ export class VoteController {
       });
       await this.voteService.castVote(dto);
       res.status(201).json({ status: 'ok' });
-    } catch (err) {
+    } catch (err: any) {
+      if (err.status === 409) {
+        return res.status(409).json({ error: err.message });
+      }
       next(err);
     }
   };
