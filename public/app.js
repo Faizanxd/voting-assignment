@@ -157,17 +157,27 @@ async function voteSubmit() {
   }
   const optionId = sel.value;
 
-  // Do not prompt or send userId. Server will create/assign an anonymous user when missing.
+  // Read stored userId from localStorage if available
+  const storedUserId = localStorage.getItem('userId');
+
   const res = await fetchJson(`${API_BASE}/api/polls/${currentPollId}/votes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pollOptionId: optionId }),
+    credentials: 'include', // send cookies
+    body: JSON.stringify({
+      pollOptionId: optionId,
+      userId: storedUserId || undefined,
+    }),
   });
+
+  // Store userId from server if provided
+  if (res.body && res.body.userId) {
+    localStorage.setItem('userId', res.body.userId);
+  }
 
   if (res.status === 201) {
     await refreshTallies();
   } else if (res.status === 409) {
-    // If backend returns tallies on 409, use them; else refresh.
     if (res.body && Array.isArray(res.body.tallies)) {
       renderTallies(res.body.tallies);
     } else {
