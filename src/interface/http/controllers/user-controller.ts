@@ -1,16 +1,21 @@
+// src/interface/http/controllers/user-controller.ts
 import { Request, Response, NextFunction } from 'express';
-import { UserService } from '../../../application/services/user-service';
-import { createUserSchema } from '../../../application/dto/user-dto';
+import { z } from 'zod';
+import { UserRepository } from '../../../domain/repositories/user-repository';
+
+const createUserSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+});
 
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userRepo: UserRepository) {}
 
   createUser = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const dto = createUserSchema.parse(req.body);
-      const user = await this.userService.register(dto);
-      const { passwordHash, ...safeUser } = user;
-      res.status(201).json(safeUser);
+      const user = await this.userRepo.create(dto as any);
+      res.status(201).json(user);
     } catch (err) {
       next(err);
     }
@@ -18,10 +23,9 @@ export class UserController {
 
   getUser = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = await this.userService.getById(req.params.id);
+      const user = await this.userRepo.findById(req.params.id);
       if (!user) return res.status(404).json({ error: 'User not found' });
-      const { passwordHash, ...safeUser } = user;
-      res.json(safeUser);
+      res.json(user);
     } catch (err) {
       next(err);
     }

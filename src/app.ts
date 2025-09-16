@@ -1,38 +1,67 @@
-// src/app.ts
-// Minimal Express app export used by Supertest in integration tests.
-// If your real application already exports an Express app, replace this file
-// with a simple re-export of that app (e.g., `export { app } from './yourAppFile'`).
-
+// server-side sketch (Node / Express + Prisma) - put into src/app.ts or your controller file
 import express from 'express';
 import bodyParser from 'body-parser';
+import { PrismaClient } from '@prisma/client';
+import cuid from 'cuid'; // optional: or use crypto
 
-// Import your existing route handlers if available and mount them here.
-// Example:
-// import votesRouter from './routes/votes';
-// app.use('/api/polls/:id/votes', votesRouter);
-
-// For tests we provide a lightweight implementation that calls into your
-// VoteService via Prisma if you wire it in. If you already have controllers,
-// prefer to re-export your real app instead of using this file.
-
+const prisma = new PrismaClient();
 const app = express();
 app.use(bodyParser.json());
 
-// Health check
-app.get('/health', (_req, res) => res.status(200).json({ ok: true }));
+// Create poll: if creatorId missing, create a lightweight user and use its id
+app.post('/api/polls', async (req, res) => {
+  const { question, options = [], creatorId } = req.body;
+  try {
+    const creator = creatorId
+      ? await prisma.user.findUnique({ where: { id: creatorId } })
+      : await prisma.user.create({
+          data: {
+            name: 'anon',
+            email: `anon+${Date.now()}@local`,
+            passwordHash: '',
+          },
+        });
 
-// Minimal POST /api/polls/:id/votes handler used by tests.
-// Replace the handler body with your real controller logic or re-export your app.
-app.post('/api/polls/:id/votes', async (req, res) => {
-  // Expected body: { userId: string, pollOptionId: string }
-  const pollId = req.params.id;
-  const { userId, pollOptionId } = req.body;
-
-  // If you have a real VoteService or controller, call it here instead.
-  // This placeholder returns 404 to encourage wiring your real implementation.
-  return res
-    .status(404)
-    .json({ error: 'Not implemented: mount real vote handler here' });
+    const poll = await prisma.poll.create({
+      data: {
+        question,
+        creatorId: creator.id,
+        options: { create: options.map((text: string) => ({ text })) },
+      },
+      include: { options: true },
+    });
+    res.status(201).json(poll);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
 });
 
-export default app;
+// Cast vote: if userId missing, create lightweight user and use it
+app.post('/api/polls/:id/votes', async (req, res) => {
+  const { userId: incomingUserId, pollOptionId } = req.body;
+  const pollId = req.params.id;
+  try {
+    const user = incomingUserId
+      ? await prisma.user.findUnique({ where: { id: incomingUserId } })
+      : await prisma.user.create({
+          data: {
+            name: 'anon',
+            email: `anon+${Date.now()}@local`,
+            passwordHash: '',
+          },
+        });
+
+    // call your VoteService / logic here; example:
+    // await voteService.castVote({ userId: user.id, pollId, pollOptionId });
+    // for placeholder:
+    await prisma.vote.create({
+      data: { userId: user.id, pollId, pollOptionId },
+    });
+
+    res.status(201).json({ status: 'ok', userId: user.id });
+  } catch (err: any) {
+    if (err?.code === 'P2002')
+      return res.status(409).json({ error: 'already voted' });
+    res.status(500).json({ error: String(err) });
+  }
+});

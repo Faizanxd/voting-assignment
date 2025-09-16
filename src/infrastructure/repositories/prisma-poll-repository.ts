@@ -42,4 +42,33 @@ export class PrismaPollRepository implements PollRepository {
       data: { isPublished: true },
     });
   }
+  async listPublished(): Promise<PollSummary[]> {
+    return this.prisma.poll.findMany({
+      where: { isPublished: true },
+      select: { id: true, question: true, isPublished: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+  async listAll(): Promise<PollSummary[]> {
+    return this.prisma.poll.findMany({
+      select: { id: true, question: true, isPublished: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+  async deletePoll(id: string) {
+    // Delete votes for this poll first
+    await this.prisma.vote.deleteMany({
+      where: { pollId: id },
+    });
+
+    // Delete poll options for this poll
+    await this.prisma.pollOption.deleteMany({
+      where: { pollId: id },
+    });
+
+    // Now delete the poll itself
+    return this.prisma.poll.delete({
+      where: { id },
+    });
+  }
 }

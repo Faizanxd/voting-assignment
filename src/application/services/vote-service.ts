@@ -1,3 +1,4 @@
+// src/application/services/vote-service.ts
 import { PrismaClient } from '@prisma/client';
 import { VoteRepository } from '../../domain/repositories/vote-repository';
 import { PollRepository } from '../../domain/repositories/poll-repository';
@@ -16,11 +17,19 @@ export class VoteService {
     pollId: string;
     pollOptionId: string;
   }) {
+    console.debug('[VoteService] castVote called with:', data);
+
     return this.prisma.$transaction(async (tx) => {
-      // 1. Ensure poll exists and is published (using tx)
       const poll = await tx.poll.findUnique({
         where: { id: data.pollId },
         include: { options: true },
+      });
+
+      console.debug('[VoteService] poll fetched inside transaction:', {
+        pollId: data.pollId,
+        found: !!poll,
+        isPublished: poll ? poll.isPublished : null,
+        optionIds: poll ? poll.options.map((o: any) => o.id) : null,
       });
 
       if (!poll || !poll.isPublished) {
@@ -29,17 +38,30 @@ export class VoteService {
         throw e;
       }
 
-      // 2. Ensure option belongs to poll
+      // Primary membership check (case: option list available)
       const optionExists = poll.options.some(
         (o: any) => o.id === data.pollOptionId,
       );
+
+      // Fallback: direct check on PollOption table (handles weird isolation or stale include)
       if (!optionExists) {
-        const e = new Error('Option does not belong to poll');
-        (e as any).status = 400;
-        throw e;
+        console.debug(
+          '[VoteService] option not found in poll.options; falling back to direct lookup',
+        );
+        const direct = await tx.pollOption.findUnique({
+          where: { id: data.pollOptionId },
+        });
+        console.debug('[VoteService] direct pollOption lookup:', {
+          found: !!direct,
+          pollId: direct ? direct.pollId : null,
+        });
+        if (!direct || direct.pollId !== data.pollId) {
+          const e = new Error('Option does not belong to poll');
+          (e as any).status = 400;
+          throw e;
+        }
       }
 
-      // 3. Try to insert vote
       try {
         const vote = await tx.vote.create({
           data: {
@@ -49,7 +71,6 @@ export class VoteService {
           },
         });
 
-        // 4. Compute tallies inside the transaction
         const grouped = await tx.vote.groupBy({
           by: ['pollOptionId'],
           where: { pollId: data.pollId },
@@ -61,12 +82,10 @@ export class VoteService {
           count: g._count.pollOptionId,
         }));
 
-        // 5. Publish domain event
         this.eventBus.publish(new VoteCastEvent(data.pollId, tallies));
 
         return vote;
       } catch (err: any) {
-        // Prisma unique constraint violation -> map to 409
         if (err && err.code === 'P2002') {
           const conflict = new Error('User already voted');
           (conflict as any).status = 409;
@@ -75,5 +94,18 @@ export class VoteService {
         throw err;
       }
     });
+  }
+
+  // Helper to return tallies outside transactions
+  async getTallies(pollId: string) {
+    const grouped = await this.prisma.vote.groupBy({
+      by: ['pollOptionId'],
+      where: { pollId },
+      _count: { pollOptionId: true },
+    });
+    return grouped.map((g) => ({
+      optionId: g.pollOptionId,
+      count: g._count.pollOptionId,
+    }));
   }
 }

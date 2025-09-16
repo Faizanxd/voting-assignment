@@ -24,4 +24,13 @@ export class PollService {
   async publishPoll(id: string) {
     return this.polls.publish(id);
   }
+  async listPublished() {
+    return this.polls.listPublished();
+  }
+  async listAll() {
+    return this.polls.listAll();
+  }
+  async deletePoll(id: string) {
+    return this.polls.deletePoll(id);
+  }
 }

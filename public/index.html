@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Voting UI</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./app.js"></script>
+    <!-- Socket.IO client from CDN -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>Polling</h1>
+        <div id="status" class="status">Disconnected</div>
+      </header>
+
+      <section id="create" class="card">
+        <h2>Create poll</h2>
+        <input id="q" placeholder="Question" />
+        <div id="options">
+          <input class="opt" placeholder="Option 1" />
+          <input class="opt" placeholder="Option 2" />
+        </div>
+        <button id="addOpt">Add option</button>
+        <button id="createPoll">Create</button>
+      </section>
+
+      <section id="list" class="card">
+        <h2>Open polls</h2>
+        <ul id="pollList"></ul>
+        <button id="refresh">Refresh</button>
+      </section>
+
+      <section id="view" class="card hidden">
+        <div class="view-header">
+          <button id="back">← Back</button>
+          <div class="spacer"></div>
+          <button id="deleteCurrent" class="danger">Delete poll</button>
+        </div>
+        <h2 id="pollQuestion"></h2>
+        <ul id="pollOptions"></ul>
+        <div id="tallies"></div>
+      </section>
+    </main>
+  </body>
+</html>

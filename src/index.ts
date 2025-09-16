@@ -55,8 +55,8 @@ eventBus.subscribe('VoteCastEvent', (event) =>
 
 // --- Controllers ---
 const userController = new UserController(userService);
-const pollController = new PollController(pollService, voteRepo);
-const voteController = new VoteController(voteService);
+const pollController = new PollController(pollService, voteRepo, userService);
+const voteController = new VoteController(voteService, userService);
 
 // --- Routes ---
 app.use('/api/users', userRoutes(userController));

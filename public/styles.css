@@ -1,0 +1,85 @@
+:root {
+  --bg: #f6f8fa;
+  --card: #fff;
+  --accent: #0b5cff;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    'Helvetica Neue',
+    Arial;
+  background: var(--bg);
+  margin: 0;
+}
+.container {
+  max-width: 920px;
+  margin: 24px auto;
+  padding: 12px;
+}
+.card {
+  background: var(--card);
+  padding: 14px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  margin-bottom: 12px;
+}
+.hidden {
+  display: none;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#pollList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+#pollList li {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+input {
+  padding: 8px;
+  margin: 6px 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  width: 100%;
+}
+.opt {
+  display: block;
+}
+#tallies {
+  margin-top: 12px;
+}
+.tally {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+.status {
+  float: right;
+  color: #666;
+  font-size: 13px;
+}
