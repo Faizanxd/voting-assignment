@@ -1,16 +1,8 @@
 // src/server.ts
-// Simple startServer / stopServer helpers for tests that need a running HTTP+Socket server.
-// Exports:
-//  - startServer(): Promise<{ server: import('http').Server; port: number; io: import('socket.io').Server }>
-//  - stopServer(handle): Promise<void>
-//
-// The tests expect a port numeric value to construct baseUrl and will use socket.io-client
-// to connect. The HTTP server is created from the Express app exported from src/app.ts.
-
 import http from 'http';
 import { AddressInfo } from 'net';
 import { Server as SocketIOServer } from 'socket.io';
-import app from './app';
+import app, { wsConnectionsGauge, wsBroadcastsTotal } from './app';
 
 export async function startServer(): Promise<{
   server: http.Server;
@@ -20,25 +12,26 @@ export async function startServer(): Promise<{
   return new Promise((resolve, reject) => {
     const server = http.createServer(app);
     const io = new SocketIOServer(server, {
-      // test-friendly CORS
       cors: { origin: '*', methods: ['GET', 'POST'] },
     });
 
-    // Optional: basic room join handling used by WS tests.
     io.on('connection', (socket) => {
+      wsConnectionsGauge.inc();
+
       socket.on('joinPoll', (pollId: string) => {
         socket.join(`poll_${pollId}`);
       });
+
+      socket.on('disconnect', () => {
+        wsConnectionsGauge.dec();
+      });
     });
 
-    // Expose a helper on io to publish VoteCast events from your app code:
-    // Example usage in your VoteService or event handler:
-    //   import { getIo } from './server';
-    //   getIo().to(`poll_${pollId}`).emit('voteCast', { pollId, tallies });
+    // Broadcast helper with metric
     (io as any).emitVoteCast = (pollId: string, payload: any) => {
       io.to(`poll_${pollId}`).emit('voteCast', payload);
-      // also emit globally in case tests listen on global channel
       io.emit('voteCast', payload);
+      wsBroadcastsTotal.inc({ pollId });
     };
 
     server.listen(0, () => {
@@ -79,13 +72,6 @@ export async function stopServer(
   });
 }
 
-// Convenience accessor for code to get the active io instance when tests call startServer()
-// Use like:
-//   import { setIo, getIo } from './server';
-//   setIo(io);
-//   getIo().emit(...)
-// This file defines emitVoteCast on the io instance returned by startServer()
-// so wiring in your application code can call (io as any).emitVoteCast(pollId, payload)
 let _lastIo: SocketIOServer | null = null;
 export function setIo(io: SocketIOServer) {
   _lastIo = io;
